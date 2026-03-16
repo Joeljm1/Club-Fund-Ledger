@@ -14,15 +14,15 @@ type SubmitExpenseSectionProps = {
   isConfirming: boolean;
   isPending: boolean;
   purposeInput: string;
-  receiptHashInput: string;
-  receiptIdInput: string;
+  receiptHash?: string | null;
+  receiptId?: string | null;
+  receiptName: string;
   selectedClub?: ClubView;
   submitError: string | null;
   onAmountChange: (value: string) => void;
   onClubIdChange: (value: string) => void;
   onPurposeChange: (value: string) => void;
-  onReceiptHashChange: (value: string) => void;
-  onReceiptIdChange: (value: string) => void;
+  onReceiptFileChange: (file: File | null) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 };
 
@@ -36,15 +36,15 @@ export function SubmitExpenseSection({
   isConfirming,
   isPending,
   purposeInput,
-  receiptHashInput,
-  receiptIdInput,
+  receiptHash,
+  receiptId,
+  receiptName,
   selectedClub,
   submitError,
   onAmountChange,
   onClubIdChange,
   onPurposeChange,
-  onReceiptHashChange,
-  onReceiptIdChange,
+  onReceiptFileChange,
   onSubmit,
 }: SubmitExpenseSectionProps) {
   return (
@@ -100,27 +100,27 @@ export function SubmitExpenseSection({
 
         <label className="block">
           <span className="mb-2 block text-sm font-medium text-slate-700">
-            Receipt ID
+            Receipt / proof file
           </span>
           <input
+            type="file"
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-950 outline-none transition focus:border-orange-500"
-            placeholder="RCPT-2026-014"
-            value={receiptIdInput}
-            onChange={(event) => onReceiptIdChange(event.target.value)}
+            accept=".pdf,.png,.jpg,.jpeg,.webp"
+            onChange={(event) =>
+              onReceiptFileChange(event.target.files?.[0] ?? null)
+            }
           />
+          <div className="mt-2 text-xs text-slate-500">
+            {receiptName || "No file selected"}
+          </div>
         </label>
 
-        <label className="block">
-          <span className="mb-2 block text-sm font-medium text-slate-700">
-            Receipt Hash
-          </span>
-          <input
-            className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-950 outline-none transition focus:border-orange-500"
-            placeholder="Qm... or sha256 digest"
-            value={receiptHashInput}
-            onChange={(event) => onReceiptHashChange(event.target.value)}
-          />
-        </label>
+        {receiptId || receiptHash ? (
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            <div>Receipt ID: {receiptId ?? "Pending upload"}</div>
+            <div className="mt-1 break-all">Receipt hash: {receiptHash ?? "Pending hash"}</div>
+          </div>
+        ) : null}
 
         {selectedClub ? (
           <div className="rounded-2xl bg-orange-50 px-4 py-3 text-sm text-orange-900">

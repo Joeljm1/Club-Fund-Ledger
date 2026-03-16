@@ -14,6 +14,7 @@ import {
 } from "../../contracts/studentClub";
 import { useClubs, useRequests, useStudentProfile } from "../../hooks/useStudentClubReads";
 import { errorMessage, parseAmountToPaise } from "../../lib/format";
+import { computeReceiptSha256, uploadReceipt } from "../../lib/receipt";
 
 export function SubmitExpenseCard() {
   const { address, isConnected } = useConnection();
@@ -38,8 +39,9 @@ export function SubmitExpenseCard() {
   const [clubIdInput, setClubIdInput] = useState("");
   const [amountInput, setAmountInput] = useState("");
   const [purposeInput, setPurposeInput] = useState("");
-  const [receiptIdInput, setReceiptIdInput] = useState("");
-  const [receiptHashInput, setReceiptHashInput] = useState("");
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [uploadedReceiptId, setUploadedReceiptId] = useState<string | null>(null);
+  const [uploadedReceiptHash, setUploadedReceiptHash] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const { clubs } = useClubs();
@@ -53,8 +55,9 @@ export function SubmitExpenseCard() {
 
     setAmountInput("");
     setPurposeInput("");
-    setReceiptIdInput("");
-    setReceiptHashInput("");
+    setReceiptFile(null);
+    setUploadedReceiptId(null);
+    setUploadedReceiptHash(null);
     setSubmitError(null);
     void refetchStudentProfile();
     void refetchRequestIds();
@@ -107,25 +110,33 @@ export function SubmitExpenseCard() {
     }
 
     if (
-      !purposeInput.trim() ||
-      !receiptIdInput.trim() ||
-      !receiptHashInput.trim()
+      !purposeInput.trim()
     ) {
-      setSubmitError("Purpose, receipt ID, and receipt hash are required.");
+      setSubmitError("Purpose is required.");
+      return;
+    }
+
+    if (!receiptFile) {
+      setSubmitError("Upload a receipt or proof file.");
       return;
     }
 
     try {
       setIsPending(true);
       setWriteError(null);
+      const sha256 = await computeReceiptSha256(receiptFile);
+      const storedReceipt = await uploadReceipt(receiptFile, sha256);
+      setUploadedReceiptId(String(storedReceipt.id));
+      setUploadedReceiptHash(storedReceipt.sha256);
+
       const studentClubContract = getStudentClubWalletContract(walletClient);
       const nextHash = await studentClubContract.write.submitExpenseRequest(
         [
           clubId,
           amountPaise,
           purposeInput.trim(),
-          receiptIdInput.trim(),
-          receiptHashInput.trim(),
+          String(storedReceipt.id),
+          storedReceipt.sha256,
         ],
         { account: address, chain: sepolia },
       );
@@ -182,15 +193,15 @@ export function SubmitExpenseCard() {
         isConfirming={isConfirming}
         isPending={isPending}
         purposeInput={purposeInput}
-        receiptHashInput={receiptHashInput}
-        receiptIdInput={receiptIdInput}
+        receiptHash={uploadedReceiptHash}
+        receiptId={uploadedReceiptId}
+        receiptName={receiptFile?.name ?? ""}
         selectedClub={selectedClub}
         submitError={combinedSubmitError}
         onAmountChange={setAmountInput}
         onClubIdChange={setClubIdInput}
         onPurposeChange={setPurposeInput}
-        onReceiptHashChange={setReceiptHashInput}
-        onReceiptIdChange={setReceiptIdInput}
+        onReceiptFileChange={setReceiptFile}
         onSubmit={handleSubmitExpense}
       />
     </div>
