@@ -19,7 +19,11 @@ function Dashboard() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   const networkLabel =
-    chainId === sepolia.id ? "Sepolia" : isConnected ? `Chain ${chainId}` : "Offline";
+    chainId === sepolia.id
+      ? "Sepolia"
+      : isConnected
+        ? `Chain ${chainId}`
+        : "Offline";
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,_#fff7ed_0%,_#ffffff_36%,_#f8fafc_100%)]">
@@ -36,7 +40,9 @@ function Dashboard() {
 
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2 rounded-full bg-orange-50 px-3 py-2 text-sm text-slate-700 md:flex">
-              <span className="font-semibold text-slate-900">{networkLabel}</span>
+              <span className="font-semibold text-slate-900">
+                {networkLabel}
+              </span>
               <span className="text-slate-400">|</span>
               <span>{shortAddress(address)}</span>
             </div>

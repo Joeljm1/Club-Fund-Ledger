@@ -1,75 +1,23 @@
-# React + TypeScript + Vite
+# Student Club Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This frontend connects MetaMask to the deployed `StudentClubFundTracker` contract on Sepolia.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Copy `.env.example` to `.env`.
+2. Set `VITE_STUDENT_CLUB_ADDRESS` to the contract address from Remix.
+3. Optionally set `VITE_INFURA_API_KEY` if you want the MetaMask connector to use Infura.
+4. Install dependencies with `pnpm install`.
+5. Start the app with `pnpm dev`.
 
-## React Compiler
+## Current contract integration
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- [src/contracts/studentClub.ts](/home/joeljm/code/ts/blockchain/studentClub/src/contracts/studentClub.ts) contains the full ABI and reads the deployed address from env.
+- [src/App.tsx](/home/joeljm/code/ts/blockchain/studentClub/src/App.tsx) reads `getClubIds` and `getClub` and includes a `submitExpenseRequest` form.
+- [src/config.ts](/home/joeljm/code/ts/blockchain/studentClub/src/config.ts) configures Wagmi for MetaMask and Sepolia.
 
-Note: This will impact Vite dev & build performances.
+## Notes
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+- The connected wallet must be on Sepolia.
+- `submitExpenseRequest` will revert unless the connected wallet is already registered as a student in the selected club.
+- Admin-only methods such as `createClub` and `disburseRequest` should be exposed only to approved admin wallets or moved to a backend service.
