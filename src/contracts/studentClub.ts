@@ -1,4 +1,12 @@
-import { zeroAddress } from "viem";
+import {
+  createPublicClient,
+  getContract,
+  http,
+  type PublicClient,
+  type WalletClient,
+  zeroAddress,
+} from "viem";
+import { sepolia } from "viem/chains";
 
 export const studentClubAddress =
   (import.meta.env.VITE_STUDENT_CLUB_ADDRESS as `0x${string}` | undefined) ??
@@ -680,3 +688,37 @@ export const studentClubAbi = [
     type: "function",
   },
 ] as const;
+
+export const studentClubPublicClient = createPublicClient({
+  chain: sepolia,
+  transport: http(),
+});
+
+export const studentClubContract = getContract({
+  address: studentClubAddress,
+  abi: studentClubAbi,
+  client: studentClubPublicClient,
+});
+
+export function getStudentClubContract(client: PublicClient) {
+  return getContract({
+    address: studentClubAddress,
+    abi: studentClubAbi,
+    client,
+  });
+}
+
+export function getStudentClubWalletContract(walletClient: WalletClient) {
+  return getContract({
+    address: studentClubAddress,
+    abi: studentClubAbi,
+    client: {
+      public: studentClubPublicClient,
+      wallet: walletClient,
+    },
+  });
+}
+
+export async function isAdmin(address: `0x${string}`) {
+  return studentClubContract.read.isAdmin([address]);
+}

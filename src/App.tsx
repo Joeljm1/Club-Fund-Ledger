@@ -34,6 +34,7 @@ import {
   type RequestView,
   type StudentProfileResult,
 } from "./types/dashboard";
+import AddClub from "./components/dashboard/AddClub";
 
 const client = new QueryClient();
 
@@ -411,6 +412,7 @@ function Dashboard() {
           />
           <RequestsSection isLoading={isLoadingRequests} requests={requests} />
         </div>
+        {isAdmin ? <AddClub /> : ""}
       </section>
     </main>
   );
