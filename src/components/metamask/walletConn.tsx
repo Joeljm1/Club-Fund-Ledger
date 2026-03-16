@@ -28,3 +28,5 @@ function ConnectWallet() {
     </div>
   );
 }
+
+export default ConnectWallet;

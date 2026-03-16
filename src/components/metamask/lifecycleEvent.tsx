@@ -16,3 +16,5 @@ function WatchAccount() {
 
   return <div>Watching for account changes...</div>;
 }
+
+export default WatchAccount;
