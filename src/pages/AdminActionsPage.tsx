@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { useConnection } from "wagmi";
+import { ClubTransactionsExplorer } from "../components/dashboard/ClubTransactionsExplorer";
 import { AdminContractActions } from "../components/dashboard/ContractActions";
-import { PendingRequestsTable } from "../components/dashboard/PendingRequestsTable";
-import { useAllRequests, useUserRoles } from "../hooks/useStudentClubReads";
-import { type RequestView } from "../types/dashboard";
+import { useAllRequests, useClubs, useUserRoles } from "../hooks/useStudentClubReads";
+import { type ClubView, type RequestView } from "../types/dashboard";
 
 export function AdminActionsPage() {
   const { address, isConnected } = useConnection();
   const { isAdmin, isLoadingRoles } = useUserRoles(address);
+  const { clubs, isLoadingClubs } = useClubs();
   const { requests, isLoadingRequests } = useAllRequests();
   const [selectedRequest, setSelectedRequest] = useState<RequestView | null>(null);
-  const pendingDisbursements = requests.filter((request) => request.status === 1n);
+  const [selectedClub, setSelectedClub] = useState<ClubView | null>(null);
 
   return (
     <section className="space-y-6">
@@ -38,14 +39,19 @@ export function AdminActionsPage() {
         </div>
       ) : (
         <>
-          <PendingRequestsTable
-            requests={pendingDisbursements}
-            isLoading={isLoadingRequests}
-            title="Approved requests awaiting disbursal"
-            description="Click Disburse to open a layer for the selected approved request."
-            emptyMessage="No approved requests are waiting for admin disbursal."
+          <ClubTransactionsExplorer
+            clubs={clubs}
+            requests={requests}
+            isLoading={isLoadingClubs || isLoadingRequests}
+            title="All clubs"
+            description="Open any club to see its transactions, receipts, reviews, and approved requests awaiting disbursal."
+            emptyMessage="No clubs are available in the contract."
+            selectedClub={selectedClub}
+            onSelectClub={setSelectedClub}
+            onCloseClub={() => setSelectedClub(null)}
             actionLabel="Disburse"
-            onSelect={setSelectedRequest}
+            actionableStatuses={[1n]}
+            onSelectRequest={setSelectedRequest}
           />
           <AdminContractActions
             selectedRequest={selectedRequest}

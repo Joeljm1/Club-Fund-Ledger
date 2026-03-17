@@ -1,20 +1,18 @@
 import { useState } from "react";
 import { useConnection } from "wagmi";
+import { ClubTransactionsExplorer } from "../components/dashboard/ClubTransactionsExplorer";
 import { LeadContractActions } from "../components/dashboard/ContractActions";
-import { PendingRequestsTable } from "../components/dashboard/PendingRequestsTable";
 import { useAllRequests, useUserRoles } from "../hooks/useStudentClubReads";
-import { type RequestView } from "../types/dashboard";
+import { type ClubView, type RequestView } from "../types/dashboard";
 
 export function LeadActionsPage() {
   const { address, isConnected } = useConnection();
   const { isLead, leadClubs, isLoadingRoles } = useUserRoles(address);
   const { requests, isLoadingRequests } = useAllRequests();
   const [selectedRequest, setSelectedRequest] = useState<RequestView | null>(null);
+  const [selectedClub, setSelectedClub] = useState<ClubView | null>(null);
   const leadClubIds = new Set(leadClubs.map((club) => club.id.toString()));
-  const pendingLeadRequests = requests.filter(
-    (request) =>
-      request.status === 0n && leadClubIds.has(request.clubId.toString()),
-  );
+  const leadRequests = requests.filter((request) => leadClubIds.has(request.clubId.toString()));
 
   return (
     <section className="space-y-6">
@@ -45,14 +43,19 @@ export function LeadActionsPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
             Lead for: {leadClubs.map((club) => `${club.name} (#${club.id})`).join(", ")}
           </div>
-          <PendingRequestsTable
-            requests={pendingLeadRequests}
+          <ClubTransactionsExplorer
+            clubs={leadClubs}
+            requests={leadRequests}
             isLoading={isLoadingRequests}
-            title="Submitted requests awaiting lead review"
-            description="Click Review to open a layer with the request details and receipt preview."
-            emptyMessage="No submitted requests are waiting for your review."
+            title="Your clubs"
+            description="Open a club to see all transactions, receipts, notes, and requests awaiting review."
+            emptyMessage="No clubs are currently assigned to this lead."
+            selectedClub={selectedClub}
+            onSelectClub={setSelectedClub}
+            onCloseClub={() => setSelectedClub(null)}
             actionLabel="Review"
-            onSelect={setSelectedRequest}
+            actionableStatuses={[0n]}
+            onSelectRequest={setSelectedRequest}
           />
           <LeadContractActions
             selectedRequest={selectedRequest}

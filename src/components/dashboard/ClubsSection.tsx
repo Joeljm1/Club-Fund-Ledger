@@ -68,7 +68,7 @@ export function ClubsSection({ clubs, isLoading }: ClubsSectionProps) {
                 </div>
                 <div className="rounded-2xl bg-white p-3">
                   <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                    Spent
+                    Money Used
                   </div>
                   <div className="mt-2 font-semibold text-slate-950">
                     {formatPaise(club.spentPaise)}

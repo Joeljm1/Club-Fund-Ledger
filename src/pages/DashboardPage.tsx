@@ -7,22 +7,27 @@ import { ContractDebugSection } from "../components/dashboard/ContractDebugSecti
 import { StudentProfileSection } from "../components/dashboard/StudentProfileSection";
 import { RequestsSection } from "../components/dashboard/RequestsSection";
 import { studentClubAddressConfigured } from "../contracts/studentClub";
-import { useClubs, useIsAdmin, useRequests, useStudentProfile } from "../hooks/useStudentClubReads";
+import {
+  useClubs,
+  useIsAdmin,
+  useRequests,
+  useStudentProfile,
+} from "../hooks/useStudentClubReads";
 
 export function DashboardPage() {
   const { address, isConnected } = useConnection();
   const chainId = useChainId();
 
   const { data: isAdmin } = useIsAdmin(address);
-  const {
-    clubs,
-    isLoadingClubIds,
-    isLoadingClubs,
-  } = useClubs();
+  const { clubs, isLoadingClubIds, isLoadingClubs } = useClubs();
   const { activeClubId, isRegisteredStudent } = useStudentProfile(address);
   const { isLoadingRequests, requests } = useRequests(address);
   const networkLabel =
-    chainId === sepolia.id ? "Sepolia" : isConnected ? `Chain ${chainId}` : "Offline";
+    chainId === sepolia.id
+      ? "Sepolia"
+      : isConnected
+        ? `Chain ${chainId}`
+        : "Offline";
 
   return (
     <>
