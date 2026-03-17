@@ -1,10 +1,16 @@
+import { useState } from "react";
 import { useConnection } from "wagmi";
 import { AdminContractActions } from "../components/dashboard/ContractActions";
-import { useUserRoles } from "../hooks/useStudentClubReads";
+import { PendingRequestsTable } from "../components/dashboard/PendingRequestsTable";
+import { useAllRequests, useUserRoles } from "../hooks/useStudentClubReads";
+import { type RequestView } from "../types/dashboard";
 
 export function AdminActionsPage() {
   const { address, isConnected } = useConnection();
   const { isAdmin, isLoadingRoles } = useUserRoles(address);
+  const { requests, isLoadingRequests } = useAllRequests();
+  const [selectedRequest, setSelectedRequest] = useState<RequestView | null>(null);
+  const pendingDisbursements = requests.filter((request) => request.status === 1n);
 
   return (
     <section className="space-y-6">
@@ -31,7 +37,18 @@ export function AdminActionsPage() {
           The connected wallet is not an admin for this contract.
         </div>
       ) : (
-        <AdminContractActions />
+        <>
+          <PendingRequestsTable
+            requests={pendingDisbursements}
+            isLoading={isLoadingRequests}
+            title="Approved requests awaiting disbursal"
+            description="Click a row action to load the request into the disburse form."
+            emptyMessage="No approved requests are waiting for admin disbursal."
+            actionLabel="Disburse"
+            onSelect={setSelectedRequest}
+          />
+          <AdminContractActions selectedRequest={selectedRequest} />
+        </>
       )}
     </section>
   );

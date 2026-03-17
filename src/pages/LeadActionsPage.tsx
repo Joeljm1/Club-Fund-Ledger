@@ -1,10 +1,20 @@
+import { useState } from "react";
 import { useConnection } from "wagmi";
 import { LeadContractActions } from "../components/dashboard/ContractActions";
-import { useUserRoles } from "../hooks/useStudentClubReads";
+import { PendingRequestsTable } from "../components/dashboard/PendingRequestsTable";
+import { useAllRequests, useUserRoles } from "../hooks/useStudentClubReads";
+import { type RequestView } from "../types/dashboard";
 
 export function LeadActionsPage() {
   const { address, isConnected } = useConnection();
   const { isLead, leadClubs, isLoadingRoles } = useUserRoles(address);
+  const { requests, isLoadingRequests } = useAllRequests();
+  const [selectedRequest, setSelectedRequest] = useState<RequestView | null>(null);
+  const leadClubIds = new Set(leadClubs.map((club) => club.id.toString()));
+  const pendingLeadRequests = requests.filter(
+    (request) =>
+      request.status === 0n && leadClubIds.has(request.clubId.toString()),
+  );
 
   return (
     <section className="space-y-6">
@@ -35,7 +45,16 @@ export function LeadActionsPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
             Lead for: {leadClubs.map((club) => `${club.name} (#${club.id})`).join(", ")}
           </div>
-          <LeadContractActions />
+          <PendingRequestsTable
+            requests={pendingLeadRequests}
+            isLoading={isLoadingRequests}
+            title="Submitted requests awaiting lead review"
+            description="Click a row action to load the request into the review form."
+            emptyMessage="No submitted requests are waiting for your review."
+            actionLabel="Review"
+            onSelect={setSelectedRequest}
+          />
+          <LeadContractActions selectedRequest={selectedRequest} />
         </>
       )}
     </section>

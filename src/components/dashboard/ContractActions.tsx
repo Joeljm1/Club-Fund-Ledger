@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sepolia } from "viem/chains";
 import { useConnection, useWalletClient } from "wagmi";
 import {
@@ -6,6 +6,7 @@ import {
   studentClubAddressConfigured,
 } from "../../contracts/studentClub";
 import { errorMessage, parseAmountToPaise } from "../../lib/format";
+import { type RequestView } from "../../types/dashboard";
 
 function isAddress(value: string) {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim());
@@ -106,7 +107,13 @@ function ContractActionForm({
   );
 }
 
-export function AdminContractActions() {
+type AdminContractActionsProps = {
+  selectedRequest?: RequestView | null;
+};
+
+export function AdminContractActions({
+  selectedRequest,
+}: AdminContractActionsProps) {
   const [adminAddress, setAdminAddress] = useState("");
   const [adminApproved, setAdminApproved] = useState(true);
 
@@ -127,6 +134,14 @@ export function AdminContractActions() {
 
   const [disburseRequestId, setDisburseRequestId] = useState("");
   const [payoutReference, setPayoutReference] = useState("");
+
+  useEffect(() => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    setDisburseRequestId(selectedRequest.id.toString());
+  }, [selectedRequest]);
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">
@@ -377,10 +392,26 @@ export function AdminContractActions() {
   );
 }
 
-export function LeadContractActions() {
+type LeadContractActionsProps = {
+  selectedRequest?: RequestView | null;
+};
+
+export function LeadContractActions({
+  selectedRequest,
+}: LeadContractActionsProps) {
   const [reviewRequestId, setReviewRequestId] = useState("");
   const [reviewApprove, setReviewApprove] = useState(true);
   const [reviewNote, setReviewNote] = useState("");
+
+  useEffect(() => {
+    if (!selectedRequest) {
+      return;
+    }
+
+    setReviewRequestId(selectedRequest.id.toString());
+    setReviewNote(selectedRequest.leadNote);
+    setReviewApprove(selectedRequest.status === 0n);
+  }, [selectedRequest]);
 
   return (
     <div className="grid gap-6">

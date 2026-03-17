@@ -121,6 +121,8 @@ app.post("/api/receipts", upload.single("receipt"), async (req, res) => {
       sha256: sha256.toLowerCase(),
       originalName: file.originalname,
       storedName: file.filename,
+      mimeType: file.mimetype,
+      url: `/uploads/${file.filename}`,
     });
   } catch (error) {
     fs.unlinkSync(file.path);
@@ -151,7 +153,10 @@ app.get("/api/receipts/:id", async (req, res) => {
       return;
     }
 
-    res.json(receipt);
+    res.json({
+      ...receipt,
+      url: `/uploads/${receipt.stored_name}`,
+    });
   } catch (error) {
     res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to load receipt.",

@@ -163,3 +163,66 @@ export function useRequests(address?: `0x${string}`) {
     refetchRequests: requestsQuery.refetch,
   };
 }
+
+export function useAllRequests() {
+  const nextRequestIdQuery = useQuery({
+    queryKey: ["studentClub", "nextRequestId"],
+    queryFn: () => studentClubContract.read.nextRequestId(),
+    enabled: studentClubAddressConfigured,
+  });
+
+  const nextRequestId = nextRequestIdQuery.data ?? 1n;
+  const requestIds =
+    nextRequestId > 1n
+      ? Array.from({ length: Number(nextRequestId - 1n) }, (_, index) =>
+          BigInt(index + 1),
+        )
+      : [];
+
+  const requestsQuery = useQuery({
+    queryKey: [
+      "studentClub",
+      "allRequests",
+      requestIds.map((requestId) => requestId.toString()),
+    ],
+    queryFn: async () =>
+      Promise.all(
+        requestIds.map((requestId) => studentClubContract.read.getRequest([requestId])),
+      ),
+    enabled: studentClubAddressConfigured && requestIds.length > 0,
+  });
+
+  const requests: RequestView[] =
+    requestsQuery.data?.map((request, index) => {
+      const [
+        clubId,
+        student,
+        amountPaise,
+        purpose,
+        receiptId,
+        receiptHash,
+        status,
+        leadNote,
+        payoutReference,
+      ] = request;
+
+      return {
+        id: requestIds[index],
+        clubId,
+        student,
+        amountPaise,
+        purpose,
+        receiptId,
+        receiptHash,
+        status: BigInt(status),
+        leadNote,
+        payoutReference,
+      };
+    }) ?? [];
+
+  return {
+    requests,
+    isLoadingRequests: nextRequestIdQuery.isLoading || requestsQuery.isLoading,
+    refetchAllRequests: requestsQuery.refetch,
+  };
+}

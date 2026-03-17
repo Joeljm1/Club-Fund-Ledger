@@ -1,4 +1,6 @@
+import { useQueries } from "@tanstack/react-query";
 import { formatPaise, requestStatusLabel } from "../../lib/format";
+import { fetchReceipt } from "../../lib/receipt";
 import { type RequestView } from "../../types/dashboard";
 
 type RequestsSectionProps = {
@@ -10,6 +12,18 @@ export function RequestsSection({
   isLoading,
   requests,
 }: RequestsSectionProps) {
+  const receiptQueries = useQueries({
+    queries: requests.map((request) => ({
+      queryKey: ["receipt", request.receiptId],
+      queryFn: () => fetchReceipt(request.receiptId),
+      enabled: /^\d+$/.test(request.receiptId),
+    })),
+  });
+
+  const receiptMap = new Map(
+    requests.map((request, index) => [request.receiptId, receiptQueries[index]?.data]),
+  );
+
   return (
     <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <div className="flex items-center justify-between gap-4">
@@ -55,6 +69,42 @@ export function RequestsSection({
                     {requestStatusLabel(request.status)}
                   </div>
                 </div>
+
+                {receiptMap.get(request.receiptId) ? (
+                  <div className="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                    {receiptMap.get(request.receiptId)?.mime_type.startsWith("image/") ? (
+                      <img
+                        src={receiptMap.get(request.receiptId)?.url}
+                        alt={`Receipt ${request.receiptId}`}
+                        className="h-64 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="px-4 py-6 text-sm text-slate-600">
+                        Receipt file preview is not available for this file type.
+                      </div>
+                    )}
+                    <div className="border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+                      <div className="font-medium text-slate-950">
+                        {receiptMap.get(request.receiptId)?.original_name}
+                      </div>
+                      <a
+                        href={receiptMap.get(request.receiptId)?.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex text-orange-700 underline"
+                      >
+                        Open receipt file
+                      </a>
+                    </div>
+                  </div>
+                ) : receiptQueries.find(
+                    (query, index) =>
+                      requests[index]?.receiptId === request.receiptId && query.isError,
+                  ) ? (
+                  <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Receipt file could not be loaded from the backend.
+                  </div>
+                ) : null}
 
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">

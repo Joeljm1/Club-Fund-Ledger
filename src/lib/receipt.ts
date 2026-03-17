@@ -12,6 +12,8 @@ type UploadReceiptResponse = {
   sha256: string;
   originalName: string;
   storedName: string;
+  mimeType: string;
+  url: string;
 };
 
 export async function uploadReceipt(file: File, sha256: string) {
@@ -32,4 +34,28 @@ export async function uploadReceipt(file: File, sha256: string) {
   }
 
   return (await response.json()) as UploadReceiptResponse;
+}
+
+export type StoredReceipt = {
+  id: number;
+  original_name: string;
+  stored_name: string;
+  mime_type: string;
+  size_bytes: number;
+  sha256: string;
+  created_at: string;
+  url: string;
+};
+
+export async function fetchReceipt(receiptId: string) {
+  const response = await fetch(`/api/receipts/${receiptId}`);
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as
+      | { error?: string }
+      | null;
+    throw new Error(body?.error ?? "Failed to load receipt.");
+  }
+
+  return (await response.json()) as StoredReceipt;
 }
