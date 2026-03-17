@@ -1,28 +1,23 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { sepolia } from "viem/chains";
 import { useConnection, useWalletClient } from "wagmi";
 import {
   getStudentClubWalletContract,
   studentClubAddressConfigured,
 } from "../../contracts/studentClub";
-import { errorMessage, formatPaise, parseAmountToPaise } from "../../lib/format";
+import { fetchReceipt } from "../../lib/receipt";
+import {
+  errorMessage,
+  formatPaise,
+  parseAmountToPaise,
+  shortAddress,
+} from "../../lib/format";
 import { useClubs } from "../../hooks/useStudentClubReads";
 import { type ClubView, type RequestView } from "../../types/dashboard";
 
 function isAddress(value: string) {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim());
-}
-
-function formatPaiseInput(value: bigint) {
-  const rupees = value / 100n;
-  const paise = value % 100n;
-
-  if (paise === 0n) {
-    return rupees.toString();
-  }
-
-  return `${rupees.toString()}.${paise.toString().padStart(2, "0")}`;
 }
 
 type ActionCardProps = {
@@ -131,7 +126,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
   const { address, isConnected } = useConnection();
   const { data: walletClient } = useWalletClient();
   const queryClient = useQueryClient();
-  const [budgetValue, setBudgetValue] = useState(() => formatPaiseInput(club.budgetPaise));
+  const [budgetValue, setBudgetValue] = useState("");
   const [leadAddress, setLeadAddress] = useState<string>(club.lead);
   const [studentAddress, setStudentAddress] = useState("");
   const [isPendingBudget, setIsPendingBudget] = useState(false);
@@ -141,7 +136,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
   const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    setBudgetValue(formatPaiseInput(club.budgetPaise));
+    setBudgetValue("");
     setLeadAddress(club.lead);
     setStudentAddress("");
     setSubmitError(null);
@@ -189,19 +184,21 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
   }
 
   async function handleBudgetUpdate() {
-    const budgetPaise = parseAmountToPaise(budgetValue);
-    if (budgetPaise === null || budgetPaise <= 0n) {
-      setSubmitError("Enter a valid budget in rupees.");
+    const increasePaise = parseAmountToPaise(budgetValue);
+    if (increasePaise === null || increasePaise <= 0n) {
+      setSubmitError("Enter a valid budget increase in rupees.");
       return;
     }
 
+    const updatedBudgetPaise = club.budgetPaise + increasePaise;
+
     await withContractWrite(async () => {
       const contract = getStudentClubWalletContract(walletClient!);
-      await contract.write.setClubBudget([club.id, budgetPaise], {
+      await contract.write.setClubBudget([club.id, updatedBudgetPaise], {
         account: address!,
         chain: sepolia,
       });
-    }, setIsPendingBudget, "Budget update submitted.");
+    }, setIsPendingBudget, "Budget increase submitted.");
   }
 
   async function handleLeadUpdate() {
@@ -260,15 +257,18 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-            <div className="text-sm font-semibold text-slate-950">Set budget</div>
+            <div className="text-sm font-semibold text-slate-950">Increase budget</div>
             <p className="mt-1 text-sm text-slate-500">
-              Update the club budget in rupees.
+              Add more budget in rupees on top of the current allocation.
+            </p>
+            <p className="mt-3 text-sm text-slate-700">
+              Current budget: <span className="font-semibold">{formatPaise(club.budgetPaise)}</span>
             </p>
             <input
               type="text"
               value={budgetValue}
               onChange={(event) => setBudgetValue(event.target.value)}
-              placeholder="Budget in rupees"
+              placeholder="Increase amount in rupees"
               className="mt-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
             />
             <button
@@ -277,7 +277,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
               disabled={isPendingBudget}
               className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
             >
-              {isPendingBudget ? "Submitting..." : "Save budget"}
+              {isPendingBudget ? "Submitting..." : "Increase budget"}
             </button>
           </section>
 
@@ -337,10 +337,12 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
 
 type AdminContractActionsProps = {
   selectedRequest?: RequestView | null;
+  onCloseSelectedRequest: () => void;
 };
 
 export function AdminContractActions({
   selectedRequest,
+  onCloseSelectedRequest,
 }: AdminContractActionsProps) {
   const { clubs, isLoadingClubs } = useClubs();
   const [adminAddress, setAdminAddress] = useState("");
@@ -353,16 +355,7 @@ export function AdminContractActions({
 
   const [removeStudentAddress, setRemoveStudentAddress] = useState("");
 
-  const [disburseRequestId, setDisburseRequestId] = useState("");
   const [payoutReference, setPayoutReference] = useState("");
-
-  useEffect(() => {
-    if (!selectedRequest) {
-      return;
-    }
-
-    setDisburseRequestId(selectedRequest.id.toString());
-  }, [selectedRequest]);
 
   return (
     <>
@@ -517,34 +510,153 @@ export function AdminContractActions({
           />
         </ContractActionForm>
 
-        <ContractActionForm
+        <ActionCard
           title="Disburse request"
-          description="Finalize an approved request and attach a payout reference."
-          submitLabel="Disburse request"
-          onSubmit={async (contract, account) => {
-            const requestId = disburseRequestId.trim()
-              ? BigInt(disburseRequestId)
-              : null;
-            if (!requestId) {
-              throw new Error("Enter a valid request ID.");
-            }
-            if (!payoutReference.trim()) {
-              throw new Error("Enter a payout reference.");
-            }
-
-            await contract.write.disburseRequest(
-              [requestId, payoutReference.trim()],
-              { account, chain: sepolia },
-            );
-          }}
+          description="Use the Approved requests table above to open a disbursal layer for a selected request."
         >
           <input
             type="text"
-            value={disburseRequestId}
-            onChange={(event) => setDisburseRequestId(event.target.value)}
-            placeholder="Request ID"
+            value={payoutReference}
+            onChange={(event) => setPayoutReference(event.target.value)}
+            placeholder="Default payout reference"
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
           />
+          <p className="mt-3 text-sm text-slate-500">
+            Select an approved request from the table to disburse it.
+          </p>
+        </ActionCard>
+      </div>
+
+      {selectedClub ? (
+        <ClubEditLayer club={selectedClub} onClose={() => setSelectedClub(null)} />
+      ) : null}
+      {selectedRequest ? (
+        <DisburseRequestLayer
+          request={selectedRequest}
+          initialPayoutReference={payoutReference}
+          onClose={onCloseSelectedRequest}
+        />
+      ) : null}
+    </>
+  );
+}
+
+type DisburseRequestLayerProps = {
+  request: RequestView;
+  initialPayoutReference: string;
+  onClose: () => void;
+};
+
+function DisburseRequestLayer({
+  request,
+  initialPayoutReference,
+  onClose,
+}: DisburseRequestLayerProps) {
+  const { address, isConnected } = useConnection();
+  const { data: walletClient } = useWalletClient();
+  const queryClient = useQueryClient();
+  const [payoutReference, setPayoutReference] = useState(initialPayoutReference);
+  const [isPending, setIsPending] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPayoutReference(initialPayoutReference);
+    setSubmitError(null);
+  }, [initialPayoutReference, request]);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitError(null);
+
+    if (!studentClubAddressConfigured) {
+      setSubmitError("Set VITE_STUDENT_CLUB_ADDRESS before sending transactions.");
+      return;
+    }
+
+    if (!isConnected || !address) {
+      setSubmitError("Connect MetaMask first.");
+      return;
+    }
+
+    if (!walletClient) {
+      setSubmitError("Wallet client is not available.");
+      return;
+    }
+
+    if (walletClient.chain?.id !== sepolia.id) {
+      setSubmitError("Switch MetaMask to the Sepolia network.");
+      return;
+    }
+
+    if (!payoutReference.trim()) {
+      setSubmitError("Enter a payout reference.");
+      return;
+    }
+
+    try {
+      setIsPending(true);
+      const contract = getStudentClubWalletContract(walletClient);
+      await contract.write.disburseRequest(
+        [request.id, payoutReference.trim()],
+        { account: address, chain: sepolia },
+      );
+      await queryClient.invalidateQueries({ queryKey: ["studentClub"] });
+      onClose();
+    } catch (error) {
+      setSubmitError(errorMessage(error) ?? "Transaction failed.");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 px-4 py-8 backdrop-blur-sm">
+      <div className="max-h-full w-full max-w-3xl overflow-y-auto rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_30px_120px_rgba(15,23,42,0.18)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-600">
+              Disburse Request
+            </div>
+            <h3 className="mt-3 text-3xl font-bold text-slate-950">
+              Request #{request.id.toString()}
+            </h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Finalize this approved request and attach a payout reference.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Club</div>
+            <div className="mt-2 font-medium text-slate-950">#{request.clubId.toString()}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Amount</div>
+            <div className="mt-2 font-medium text-slate-950">
+              {formatPaise(request.amountPaise)}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Student</div>
+            <div className="mt-2 font-medium text-slate-950">
+              {shortAddress(request.student)}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Purpose</div>
+            <div className="mt-2 font-medium text-slate-950">{request.purpose}</div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-6">
           <input
             type="text"
             value={payoutReference}
@@ -552,26 +664,44 @@ export function AdminContractActions({
             placeholder="Payout reference"
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
           />
-        </ContractActionForm>
+          {submitError ? <p className="mt-4 text-sm text-red-600">{submitError}</p> : null}
+          <button
+            type="submit"
+            disabled={isPending}
+            className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+          >
+            {isPending ? "Submitting..." : "Disburse request"}
+          </button>
+        </form>
       </div>
-
-      {selectedClub ? (
-        <ClubEditLayer club={selectedClub} onClose={() => setSelectedClub(null)} />
-      ) : null}
-    </>
+    </div>
   );
 }
 
 type LeadContractActionsProps = {
   selectedRequest?: RequestView | null;
+  onClose: () => void;
 };
 
 export function LeadContractActions({
   selectedRequest,
+  onClose,
 }: LeadContractActionsProps) {
   const [reviewRequestId, setReviewRequestId] = useState("");
-  const [reviewApprove, setReviewApprove] = useState(true);
+  const [reviewDecision, setReviewDecision] = useState<"approve" | "deny">("approve");
   const [reviewNote, setReviewNote] = useState("");
+  const { address, isConnected } = useConnection();
+  const { data: walletClient } = useWalletClient();
+  const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+
+  const receiptQuery = useQuery({
+    queryKey: ["receipt", selectedRequest?.receiptId],
+    queryFn: () => fetchReceipt(selectedRequest!.receiptId),
+    enabled: Boolean(selectedRequest && /^\d+$/.test(selectedRequest.receiptId)),
+  });
 
   useEffect(() => {
     if (!selectedRequest) {
@@ -580,49 +710,254 @@ export function LeadContractActions({
 
     setReviewRequestId(selectedRequest.id.toString());
     setReviewNote(selectedRequest.leadNote);
-    setReviewApprove(selectedRequest.status === 0n);
+    setReviewDecision(selectedRequest.status === 2n ? "deny" : "approve");
   }, [selectedRequest]);
 
-  return (
-    <div className="grid gap-6">
-      <ContractActionForm
-        title="Review request"
-        description="Approve or reject a submitted expense request as the club lead."
-        submitLabel="Review request"
-        onSubmit={async (contract, account) => {
-          const requestId = reviewRequestId.trim() ? BigInt(reviewRequestId) : null;
-          if (!requestId) {
-            throw new Error("Enter a valid request ID.");
-          }
+  if (!selectedRequest) {
+    return null;
+  }
 
-          await contract.write.reviewRequest(
-            [requestId, reviewApprove, reviewNote.trim()],
-            { account, chain: sepolia },
-          );
-        }}
-      >
-        <input
-          type="text"
-          value={reviewRequestId}
-          onChange={(event) => setReviewRequestId(event.target.value)}
-          placeholder="Request ID"
-          className="w-full rounded-lg border border-slate-300 px-3 py-2"
-        />
-        <label className="flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={reviewApprove}
-            onChange={(event) => setReviewApprove(event.target.checked)}
-          />
-          Approve request
-        </label>
-        <textarea
-          value={reviewNote}
-          onChange={(event) => setReviewNote(event.target.value)}
-          placeholder="Lead note"
-          className="min-h-28 w-full rounded-lg border border-slate-300 px-3 py-2"
-        />
-      </ContractActionForm>
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitError(null);
+    setSubmitSuccess(null);
+
+    if (!studentClubAddressConfigured) {
+      setSubmitError("Set VITE_STUDENT_CLUB_ADDRESS before sending transactions.");
+      return;
+    }
+
+    if (!isConnected || !address) {
+      setSubmitError("Connect MetaMask first.");
+      return;
+    }
+
+    if (!walletClient) {
+      setSubmitError("Wallet client is not available.");
+      return;
+    }
+
+    if (walletClient.chain?.id !== sepolia.id) {
+      setSubmitError("Switch MetaMask to the Sepolia network.");
+      return;
+    }
+
+    try {
+      setIsPending(true);
+      const contract = getStudentClubWalletContract(walletClient);
+      const requestId = reviewRequestId.trim() ? BigInt(reviewRequestId) : null;
+      if (!requestId) {
+        throw new Error("Enter a valid request ID.");
+      }
+
+      await contract.write.reviewRequest(
+        [requestId, reviewDecision === "approve", reviewNote.trim()],
+        { account: address, chain: sepolia },
+      );
+      await queryClient.invalidateQueries({ queryKey: ["studentClub"] });
+      setSubmitSuccess("Review submitted.");
+      onClose();
+    } catch (error) {
+      setSubmitError(errorMessage(error) ?? "Transaction failed.");
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 px-4 py-8 backdrop-blur-sm">
+      <div className="max-h-full w-full max-w-5xl overflow-y-auto rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_30px_120px_rgba(15,23,42,0.18)]">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-600">
+              Review Request
+            </div>
+            <h3 className="mt-3 text-3xl font-bold text-slate-950">
+              Request #{selectedRequest.id.toString()}
+            </h3>
+            <p className="mt-2 text-sm text-slate-500">
+              Check the receipt, note, and decision before submitting as club lead.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-700"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <section className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div className="text-sm font-semibold text-slate-950">Receipt</div>
+            <p className="mt-1 text-sm text-slate-500">
+              Uploaded proof file for this expense request.
+            </p>
+
+            {receiptQuery.isLoading ? (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+                Loading receipt...
+              </div>
+            ) : receiptQuery.isError ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                Receipt file could not be loaded from the backend.
+              </div>
+            ) : receiptQuery.data ? (
+              <div className="mt-4 overflow-hidden rounded-3xl border border-slate-200 bg-white">
+                {receiptQuery.data.mime_type.startsWith("image/") ? (
+                  <img
+                    src={receiptQuery.data.url}
+                    alt={`Receipt ${selectedRequest.receiptId}`}
+                    className="max-h-[28rem] w-full object-contain bg-slate-100"
+                  />
+                ) : receiptQuery.data.mime_type === "application/pdf" ? (
+                  <iframe
+                    src={receiptQuery.data.url}
+                    title={`Receipt ${selectedRequest.receiptId}`}
+                    className="h-[28rem] w-full bg-white"
+                  />
+                ) : (
+                  <div className="px-4 py-6 text-sm text-slate-600">
+                    Preview is not available for this file type. Open the receipt file
+                    directly.
+                  </div>
+                )}
+                <div className="border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+                  <div className="font-medium text-slate-950">
+                    {receiptQuery.data.original_name}
+                  </div>
+                  <div className="mt-1">
+                    {receiptQuery.data.mime_type} • {receiptQuery.data.size_bytes} bytes
+                  </div>
+                  <a
+                    href={receiptQuery.data.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-flex text-orange-700 underline"
+                  >
+                    Open receipt file
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-500">
+                Receipt preview is unavailable for this request.
+              </div>
+            )}
+          </section>
+
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-3xl border border-slate-200 bg-slate-50 p-5"
+          >
+            <div className="text-sm font-semibold text-slate-950">Decision</div>
+            <p className="mt-1 text-sm text-slate-500">
+              Approve or deny this request and store an optional lead note onchain.
+            </p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                  Club
+                </div>
+                <div className="mt-2 font-medium text-slate-950">
+                  #{selectedRequest.clubId.toString()}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                  Amount
+                </div>
+                <div className="mt-2 font-medium text-slate-950">
+                  {formatPaise(selectedRequest.amountPaise)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                  Student
+                </div>
+                <div className="mt-2 font-medium text-slate-950">
+                  {shortAddress(selectedRequest.student)}
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                  Receipt ID
+                </div>
+                <div className="mt-2 font-medium text-slate-950">
+                  {selectedRequest.receiptId}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-2xl bg-white p-3 text-sm text-slate-600">
+              <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                Purpose
+              </div>
+              <div className="mt-2 font-medium text-slate-950">
+                {selectedRequest.purpose}
+              </div>
+            </div>
+
+            <input
+              type="text"
+              value={reviewRequestId}
+              onChange={(event) => setReviewRequestId(event.target.value)}
+              placeholder="Request ID"
+              className="mt-4 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+            />
+
+            <div className="mt-4 space-y-2">
+              <div className="text-sm font-medium text-slate-700">Decision</div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReviewDecision("approve")}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium ${
+                    reviewDecision === "approve"
+                      ? "border-emerald-600 bg-emerald-50 text-emerald-700"
+                      : "border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setReviewDecision("deny")}
+                  className={`rounded-lg border px-4 py-2 text-sm font-medium ${
+                    reviewDecision === "deny"
+                      ? "border-red-600 bg-red-50 text-red-700"
+                      : "border-slate-300 bg-white text-slate-700"
+                  }`}
+                >
+                  Deny
+                </button>
+              </div>
+            </div>
+
+            <textarea
+              value={reviewNote}
+              onChange={(event) => setReviewNote(event.target.value)}
+              placeholder="Lead note"
+              className="mt-4 min-h-28 w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
+            />
+
+            {submitError ? <p className="mt-4 text-sm text-red-600">{submitError}</p> : null}
+            {submitSuccess ? (
+              <p className="mt-4 text-sm text-emerald-700">{submitSuccess}</p>
+            ) : null}
+
+            <button
+              type="submit"
+              disabled={isPending}
+              className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+            >
+              {isPending ? "Submitting..." : "Submit review"}
+            </button>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

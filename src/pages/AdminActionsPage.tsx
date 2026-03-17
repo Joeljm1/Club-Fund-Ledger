@@ -42,12 +42,15 @@ export function AdminActionsPage() {
             requests={pendingDisbursements}
             isLoading={isLoadingRequests}
             title="Approved requests awaiting disbursal"
-            description="Click a row action to load the request into the disburse form."
+            description="Click Disburse to open a layer for the selected approved request."
             emptyMessage="No approved requests are waiting for admin disbursal."
             actionLabel="Disburse"
             onSelect={setSelectedRequest}
           />
-          <AdminContractActions selectedRequest={selectedRequest} />
+          <AdminContractActions
+            selectedRequest={selectedRequest}
+            onCloseSelectedRequest={() => setSelectedRequest(null)}
+          />
         </>
       )}
     </section>

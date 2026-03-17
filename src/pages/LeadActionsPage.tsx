@@ -49,12 +49,15 @@ export function LeadActionsPage() {
             requests={pendingLeadRequests}
             isLoading={isLoadingRequests}
             title="Submitted requests awaiting lead review"
-            description="Click a row action to load the request into the review form."
+            description="Click Review to open a layer with the request details and receipt preview."
             emptyMessage="No submitted requests are waiting for your review."
             actionLabel="Review"
             onSelect={setSelectedRequest}
           />
-          <LeadContractActions selectedRequest={selectedRequest} />
+          <LeadContractActions
+            selectedRequest={selectedRequest}
+            onClose={() => setSelectedRequest(null)}
+          />
         </>
       )}
     </section>

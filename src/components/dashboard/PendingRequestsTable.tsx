@@ -67,6 +67,9 @@ export function PendingRequestsTable({
             <tbody className="divide-y divide-slate-100">
               {requests.map((request) => {
                 const receipt = receiptMap.get(request.receiptId);
+                const receiptQuery = receiptQueries.find(
+                  (_query, index) => requests[index]?.receiptId === request.receiptId,
+                );
 
                 return (
                   <tr key={request.id.toString()} className="align-top">
@@ -99,7 +102,18 @@ export function PendingRequestsTable({
                               alt={`Receipt ${request.receiptId}`}
                               className="h-24 w-24 rounded-xl border border-slate-200 object-cover"
                             />
-                          ) : null}
+                          ) : receipt.mime_type === "application/pdf" ? (
+                            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                              PDF receipt
+                            </div>
+                          ) : (
+                            <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700">
+                              File attached
+                            </div>
+                          )}
+                          <div className="max-w-32 break-words text-xs text-slate-500">
+                            {receipt.original_name}
+                          </div>
                           <a
                             href={receipt.url}
                             target="_blank"
@@ -109,6 +123,10 @@ export function PendingRequestsTable({
                             Open
                           </a>
                         </div>
+                      ) : receiptQuery?.isLoading ? (
+                        <div className="text-slate-500">Loading...</div>
+                      ) : receiptQuery?.isError ? (
+                        <div className="text-amber-700">Failed to load</div>
                       ) : (
                         <div className="text-slate-500">Unavailable</div>
                       )}
