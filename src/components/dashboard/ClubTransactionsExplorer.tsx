@@ -42,7 +42,7 @@ export function ClubTransactionsExplorer({
         <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="text-xl font-bold text-slate-950">{title}</h3>
-            <p className="mt-1 text-sm text-slate-500">{description}</p>
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">{description}</p>
           </div>
           <div className="text-sm text-slate-400">
             {isLoading ? "Loading..." : `${clubs.length} clubs`}
@@ -73,7 +73,7 @@ export function ClubTransactionsExplorer({
                   onClick={() => onSelectClub(club)}
                   className="w-full rounded-3xl border border-slate-200 bg-slate-50 p-5 text-left transition hover:border-orange-300 hover:bg-orange-50"
                 >
-                  <div className="flex items-start justify-between gap-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                       <div className="text-xs font-semibold uppercase tracking-[0.18em] text-orange-600">
                         Club #{club.id.toString()}
@@ -88,43 +88,22 @@ export function ClubTransactionsExplorer({
                     </div>
                   </div>
 
-                  <div className="mt-5 grid gap-3 sm:grid-cols-5">
-                    <div className="rounded-2xl bg-white p-3">
-                      <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                        Budget
-                      </div>
-                      <div className="mt-2 font-semibold text-slate-950">
-                        {formatPaise(club.budgetPaise)}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl bg-white p-3">
-                      <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                        Reserved
-                      </div>
-                      <div className="mt-2 font-semibold text-slate-950">
-                        {formatPaise(club.reservedPaise)}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl bg-white p-3">
-                      <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                        Money Used
-                      </div>
-                      <div className="mt-2 font-semibold text-slate-950">
-                        {formatPaise(club.spentPaise)}
-                      </div>
-                    </div>
-                    <div className="rounded-2xl bg-white p-3">
-                      <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                        Submitted
-                      </div>
-                      <div className="mt-2 font-semibold text-slate-950">{submittedCount}</div>
-                    </div>
-                    <div className="rounded-2xl bg-white p-3">
-                      <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                        Approved
-                      </div>
-                      <div className="mt-2 font-semibold text-slate-950">{approvedCount}</div>
-                    </div>
+                  <div className="mt-4 flex flex-wrap gap-2 text-sm">
+                    <span className="rounded-full bg-white px-3 py-2 font-medium text-slate-700">
+                      Budget {formatPaise(club.budgetPaise)}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-2 font-medium text-slate-700">
+                      Reserved {formatPaise(club.reservedPaise)}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-2 font-medium text-slate-700">
+                      Used {formatPaise(club.spentPaise)}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-2 font-medium text-slate-700">
+                      Submitted {submittedCount}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-2 font-medium text-slate-700">
+                      Approved {approvedCount}
+                    </span>
                   </div>
                 </button>
               );
@@ -204,7 +183,7 @@ function ClubTransactionsLayer({
           </button>
         </div>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           <div className="rounded-2xl bg-slate-50 p-4">
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Budget</div>
             <div className="mt-2 font-semibold text-slate-950">
@@ -255,8 +234,10 @@ function ClubTransactionsLayer({
                         <h4 className="mt-2 text-lg font-bold text-slate-950">
                           {request.purpose}
                         </h4>
-                        <div className="mt-2 text-sm text-slate-500">
-                          {shortAddress(request.student)} • {formatPaise(request.amountPaise)}
+                        <div className="mt-2 flex flex-wrap gap-2 text-sm text-slate-500">
+                          <span>{shortAddress(request.student)}</span>
+                          <span>{formatPaise(request.amountPaise)}</span>
+                          <span>Used {formatPaise(request.status === 3n ? request.amountPaise : 0n)}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
@@ -320,15 +301,7 @@ function ClubTransactionsLayer({
                       </div>
                     )}
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">
-                        <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
-                          Money Used
-                        </div>
-                        <div className="mt-2 font-medium text-slate-950">
-                          {formatPaise(request.status === 3n ? request.amountPaise : 0n)}
-                        </div>
-                      </div>
+                    <div className="mt-5 grid gap-3 md:grid-cols-2">
                       <div className="rounded-2xl bg-white p-3 text-sm text-slate-600">
                         <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
                           Receipt ID
@@ -347,17 +320,25 @@ function ClubTransactionsLayer({
                       </div>
                     </div>
 
-                    {request.leadNote ? (
-                      <div className="mt-3 rounded-2xl bg-white p-3 text-sm text-slate-700">
-                        Lead note: {request.leadNote}
-                      </div>
-                    ) : null}
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      {request.leadNote ? (
+                        <div className="rounded-2xl bg-white p-3 text-sm text-slate-700">
+                          <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                            Lead note
+                          </div>
+                          <div className="mt-2">{request.leadNote}</div>
+                        </div>
+                      ) : null}
 
-                    {request.payoutReference ? (
-                      <div className="mt-3 rounded-2xl bg-white p-3 text-sm text-slate-700">
-                        Payout reference: {request.payoutReference}
-                      </div>
-                    ) : null}
+                      {request.payoutReference ? (
+                        <div className="rounded-2xl bg-white p-3 text-sm text-slate-700">
+                          <div className="text-xs uppercase tracking-[0.15em] text-slate-400">
+                            Payout reference
+                          </div>
+                          <div className="mt-2">{request.payoutReference}</div>
+                        </div>
+                      ) : null}
+                    </div>
                   </article>
                 );
               })
