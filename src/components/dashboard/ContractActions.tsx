@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { sepolia } from "viem/chains";
-import { useConnection, useWalletClient } from "wagmi";
+import { useConnection, usePublicClient, useWalletClient } from "wagmi";
 import {
   getStudentClubWalletContract,
   studentClubAddressConfigured,
@@ -18,6 +18,17 @@ import { type ClubView, type RequestView } from "../../types/dashboard";
 
 function isAddress(value: string) {
   return /^0x[a-fA-F0-9]{40}$/.test(value.trim());
+}
+
+async function waitForConfirmedTransaction(
+  publicClient: ReturnType<typeof usePublicClient>,
+  hash: `0x${string}`,
+) {
+  if (!publicClient) {
+    throw new Error("Public client is not available.");
+  }
+
+  await publicClient.waitForTransactionReceipt({ hash });
 }
 
 type ActionCardProps = {
@@ -43,7 +54,7 @@ type ContractActionFormProps = {
   onSubmit: (
     contract: ReturnType<typeof getStudentClubWalletContract>,
     account: `0x${string}`,
-  ) => Promise<void>;
+  ) => Promise<`0x${string}`>;
   submitLabel: string;
 };
 
@@ -56,6 +67,7 @@ function ContractActionForm({
 }: ContractActionFormProps) {
   const { address, isConnected } = useConnection();
   const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -89,7 +101,8 @@ function ContractActionForm({
     try {
       setIsPending(true);
       const contract = getStudentClubWalletContract(walletClient);
-      await onSubmit(contract, address);
+      const hash = await onSubmit(contract, address);
+      await waitForConfirmedTransaction(publicClient, hash);
       await queryClient.invalidateQueries({ queryKey: ["studentClub"] });
       setSubmitSuccess("Transaction submitted.");
     } catch (error) {
@@ -125,6 +138,7 @@ type ClubEditLayerProps = {
 function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
   const { address, isConnected } = useConnection();
   const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [budgetValue, setBudgetValue] = useState("");
   const [leadAddress, setLeadAddress] = useState<string>(club.lead);
@@ -144,7 +158,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
   }, [club]);
 
   async function withContractWrite(
-    action: () => Promise<void>,
+    action: () => Promise<`0x${string}`>,
     setPending: (value: boolean) => void,
     successMessage: string,
   ) {
@@ -173,7 +187,8 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
 
     try {
       setPending(true);
-      await action();
+      const hash = await action();
+      await waitForConfirmedTransaction(publicClient, hash);
       await queryClient.invalidateQueries({ queryKey: ["studentClub"] });
       setSubmitSuccess(successMessage);
     } catch (error) {
@@ -194,7 +209,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
 
     await withContractWrite(async () => {
       const contract = getStudentClubWalletContract(walletClient!);
-      await contract.write.setClubBudget([club.id, updatedBudgetPaise], {
+      return contract.write.setClubBudget([club.id, updatedBudgetPaise], {
         account: address!,
         chain: sepolia,
       });
@@ -209,7 +224,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
 
     await withContractWrite(async () => {
       const contract = getStudentClubWalletContract(walletClient!);
-      await contract.write.setClubLead([club.id, leadAddress.trim() as `0x${string}`], {
+      return contract.write.setClubLead([club.id, leadAddress.trim() as `0x${string}`], {
         account: address!,
         chain: sepolia,
       });
@@ -224,7 +239,7 @@ function ClubEditLayer({ club, onClose }: ClubEditLayerProps) {
 
     await withContractWrite(async () => {
       const contract = getStudentClubWalletContract(walletClient!);
-      await contract.write.addStudentToClub(
+      return contract.write.addStudentToClub(
         [club.id, studentAddress.trim() as `0x${string}`],
         {
           account: address!,
@@ -375,7 +390,7 @@ export function AdminContractActions({
               throw new Error("Enter a valid wallet address.");
             }
 
-            await contract.write.setAdmin(
+            return contract.write.setAdmin(
               [adminAddress.trim() as `0x${string}`, adminApproved],
               { account, chain: sepolia },
             );
@@ -414,7 +429,7 @@ export function AdminContractActions({
               throw new Error("Enter a valid budget in rupees.");
             }
 
-            await contract.write.createClub(
+            return contract.write.createClub(
               [clubName.trim(), clubLead.trim() as `0x${string}`, budgetPaise],
               { account, chain: sepolia },
             );
@@ -501,7 +516,7 @@ export function AdminContractActions({
               throw new Error("Enter a valid student wallet address.");
             }
 
-            await contract.write.removeStudentFromClub(
+            return contract.write.removeStudentFromClub(
               [removeStudentAddress.trim() as `0x${string}`],
               { account, chain: sepolia },
             );
@@ -560,6 +575,7 @@ function DisburseRequestLayer({
 }: DisburseRequestLayerProps) {
   const { address, isConnected } = useConnection();
   const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [payoutReference, setPayoutReference] = useState(initialPayoutReference);
   const [isPending, setIsPending] = useState(false);
@@ -602,10 +618,11 @@ function DisburseRequestLayer({
     try {
       setIsPending(true);
       const contract = getStudentClubWalletContract(walletClient);
-      await contract.write.disburseRequest(
+      const hash = await contract.write.disburseRequest(
         [request.id, payoutReference.trim()],
         { account: address, chain: sepolia },
       );
+      await waitForConfirmedTransaction(publicClient, hash);
       await queryClient.invalidateQueries({ queryKey: ["studentClub"] });
       onClose();
     } catch (error) {
@@ -704,6 +721,7 @@ export function LeadContractActions({
   const [reviewNote, setReviewNote] = useState("");
   const { address, isConnected } = useConnection();
   const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -762,10 +780,11 @@ export function LeadContractActions({
         throw new Error("Enter a valid request ID.");
       }
 
-      await contract.write.reviewRequest(
+      const hash = await contract.write.reviewRequest(
         [requestId, reviewDecision === "approve", reviewNote.trim()],
         { account: address, chain: sepolia },
       );
+      await waitForConfirmedTransaction(publicClient, hash);
       await queryClient.invalidateQueries({ queryKey: ["studentClub"] });
       setSubmitSuccess("Review submitted.");
       onClose();

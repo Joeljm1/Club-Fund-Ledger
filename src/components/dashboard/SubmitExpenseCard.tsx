@@ -72,6 +72,11 @@ export function SubmitExpenseCard() {
     setClubIdInput((current) => current || activeClubId.toString());
   }, [activeClubId]);
 
+  const selectableClubs =
+    activeClubId > 0n
+      ? clubs.filter((club) => club.id === activeClubId)
+      : clubs.filter((club) => club.active);
+
   async function handleSubmitExpense(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSubmitError(null);
@@ -100,7 +105,7 @@ export function SubmitExpenseCard() {
     const amountPaise = parseAmountToPaise(amountInput);
 
     if (!clubId) {
-      setSubmitError("Enter a valid club ID.");
+      setSubmitError("Select a club.");
       return;
     }
 
@@ -188,6 +193,7 @@ export function SubmitExpenseCard() {
         amountInput={amountInput}
         chainId={chainId}
         clubIdInput={clubIdInput}
+        clubOptions={selectableClubs}
         isConnected={isConnected}
         isConfirmed={isConfirmed}
         isConfirming={isConfirming}

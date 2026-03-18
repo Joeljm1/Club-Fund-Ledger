@@ -11,9 +11,10 @@ export function ClubsSection({ clubs, isLoading }: ClubsSectionProps) {
     <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-slate-950">Clubs onchain</h3>
+          <h3 className="text-xl font-bold text-slate-950">Club budgets</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Live `getClubIds` and `getClub` reads from the tracker contract.
+            See each club's lead, available budget, reserved funds, and spend so
+            far.
           </p>
         </div>
         <div className="text-sm text-slate-400">

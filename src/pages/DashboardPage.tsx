@@ -9,18 +9,17 @@ import { RequestsSection } from "../components/dashboard/RequestsSection";
 import { studentClubAddressConfigured } from "../contracts/studentClub";
 import {
   useClubs,
-  useIsAdmin,
   useRequests,
-  useStudentProfile,
+  useUserRoles,
 } from "../hooks/useStudentClubReads";
 
 export function DashboardPage() {
   const { address, isConnected } = useConnection();
   const chainId = useChainId();
 
-  const { data: isAdmin } = useIsAdmin(address);
   const { clubs, isLoadingClubIds, isLoadingClubs } = useClubs();
-  const { activeClubId, isRegisteredStudent } = useStudentProfile(address);
+  const { isAdmin, isLead, leadClubs, activeClubId, isRegisteredStudent } =
+    useUserRoles(address);
   const { isLoadingRequests, requests } = useRequests(address);
   const networkLabel =
     chainId === sepolia.id
@@ -35,8 +34,10 @@ export function DashboardPage() {
         <HeroSection
           clubsCount={clubs.length}
           isAdmin={isAdmin}
+          isLead={isLead}
           isRegisteredStudent={isRegisteredStudent}
           activeClubId={activeClubId}
+          leadClubs={leadClubs.map((club) => club.name)}
         />
         <SessionCard
           address={address}

@@ -13,7 +13,7 @@ export function StudentProfileSection({
     <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-[0_20px_60px_rgba(15,23,42,0.06)]">
       <h3 className="text-xl font-bold text-slate-950">Student profile</h3>
       <p className="mt-1 text-sm text-slate-500">
-        Live `getStudentProfile` read for the connected wallet.
+        Quick view of the connected wallet's registration and access level.
       </p>
 
       <dl className="mt-6 space-y-4">

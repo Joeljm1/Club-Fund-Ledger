@@ -9,6 +9,7 @@ type SubmitExpenseSectionProps = {
   amountInput: string;
   chainId?: number;
   clubIdInput: string;
+  clubOptions: ClubView[];
   isConnected: boolean;
   isConfirmed: boolean;
   isConfirming: boolean;
@@ -31,6 +32,7 @@ export function SubmitExpenseSection({
   amountInput,
   chainId,
   clubIdInput,
+  clubOptions,
   isConnected,
   isConfirmed,
   isConfirming,
@@ -62,15 +64,25 @@ export function SubmitExpenseSection({
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
         <label className="block">
           <span className="mb-2 block text-sm font-medium text-slate-700">
-            Club ID
+            Club name
           </span>
-          <input
+          <select
             className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-950 outline-none transition focus:border-orange-500"
-            inputMode="numeric"
-            placeholder={activeClubId > 0n ? activeClubId.toString() : "1"}
             value={clubIdInput}
             onChange={(event) => onClubIdChange(event.target.value)}
-          />
+          >
+            <option value="">Select a club</option>
+            {clubOptions.map((club) => (
+              <option key={club.id.toString()} value={club.id.toString()}>
+                {club.name} (#{club.id.toString()})
+              </option>
+            ))}
+          </select>
+          {activeClubId > 0n ? (
+            <div className="mt-2 text-xs text-slate-500">
+              Your assigned club ID: #{activeClubId.toString()}
+            </div>
+          ) : null}
         </label>
 
         <label className="block">

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useConnection } from "wagmi";
 import { ClubTransactionsExplorer } from "../components/dashboard/ClubTransactionsExplorer";
 import { LeadContractActions } from "../components/dashboard/ContractActions";
+import { PendingRequestsTable } from "../components/dashboard/PendingRequestsTable";
 import { useAllRequests, useUserRoles } from "../hooks/useStudentClubReads";
 import { type ClubView, type RequestView } from "../types/dashboard";
 
@@ -13,6 +14,7 @@ export function LeadActionsPage() {
   const [selectedClub, setSelectedClub] = useState<ClubView | null>(null);
   const leadClubIds = new Set(leadClubs.map((club) => club.id.toString()));
   const leadRequests = requests.filter((request) => leadClubIds.has(request.clubId.toString()));
+  const pendingLeadRequests = leadRequests.filter((request) => request.status === 0n);
 
   return (
     <section className="space-y-6">
@@ -43,6 +45,15 @@ export function LeadActionsPage() {
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm text-slate-600">
             Lead for: {leadClubs.map((club) => `${club.name} (#${club.id})`).join(", ")}
           </div>
+          <PendingRequestsTable
+            requests={pendingLeadRequests}
+            isLoading={isLoadingRequests}
+            title="Requests awaiting your review"
+            description="These submitted requests belong to clubs where your wallet is the current lead."
+            emptyMessage="No submitted requests are waiting for your review right now."
+            actionLabel="Review"
+            onSelect={setSelectedRequest}
+          />
           <ClubTransactionsExplorer
             clubs={leadClubs}
             requests={leadRequests}

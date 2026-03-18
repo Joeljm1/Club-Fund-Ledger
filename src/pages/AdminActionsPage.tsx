@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useConnection } from "wagmi";
 import { ClubTransactionsExplorer } from "../components/dashboard/ClubTransactionsExplorer";
 import { AdminContractActions } from "../components/dashboard/ContractActions";
+import { PendingRequestsTable } from "../components/dashboard/PendingRequestsTable";
 import { useAllRequests, useClubs, useUserRoles } from "../hooks/useStudentClubReads";
 import { type ClubView, type RequestView } from "../types/dashboard";
 
@@ -12,6 +13,7 @@ export function AdminActionsPage() {
   const { requests, isLoadingRequests } = useAllRequests();
   const [selectedRequest, setSelectedRequest] = useState<RequestView | null>(null);
   const [selectedClub, setSelectedClub] = useState<ClubView | null>(null);
+  const approvedRequests = requests.filter((request) => request.status === 1n);
 
   return (
     <section className="space-y-6">
@@ -39,6 +41,15 @@ export function AdminActionsPage() {
         </div>
       ) : (
         <>
+          <PendingRequestsTable
+            requests={approvedRequests}
+            isLoading={isLoadingRequests}
+            title="Approved requests awaiting disbursal"
+            description="These requests have already been approved by club leads and are ready for admin disbursal."
+            emptyMessage="No approved requests are waiting for disbursal right now."
+            actionLabel="Disburse"
+            onSelect={setSelectedRequest}
+          />
           <ClubTransactionsExplorer
             clubs={clubs}
             requests={requests}

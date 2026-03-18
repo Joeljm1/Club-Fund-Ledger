@@ -30,7 +30,8 @@ export function RequestsSection({
         <div>
           <h3 className="text-xl font-bold text-slate-950">Your requests</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Request history loaded from `getStudentRequestIds` and `getRequest`.
+            Review submitted expenses, their current status, and any attached
+            receipt details.
           </p>
         </div>
         <div className="text-sm text-slate-400">
