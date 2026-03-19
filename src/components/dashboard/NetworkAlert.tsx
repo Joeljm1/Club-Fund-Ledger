@@ -2,19 +2,21 @@ type NetworkAlertProps = {
   chainId: number;
   isSwitchingChain: boolean;
   onSwitch: () => void;
+  error?: string | null;
 };
 
 export function NetworkAlert({
   chainId,
   isSwitchingChain,
   onSwitch,
+  error,
 }: NetworkAlertProps) {
   return (
     <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <span>
-          MetaMask is connected to chain {chainId}. Switch to Sepolia before
-          sending transactions.
+          MetaMask is connected to chain {chainId}. Switch to the Sepolia
+          testnet before sending transactions.
         </span>
         <button
           type="button"
@@ -25,6 +27,7 @@ export function NetworkAlert({
           {isSwitchingChain ? "Opening MetaMask..." : "Switch to Sepolia"}
         </button>
       </div>
+      {error ? <div className="mt-3 text-xs text-amber-900">{error}</div> : null}
     </div>
   );
 }

@@ -6,9 +6,55 @@ import {
 import {
   type ClubResult,
   type ClubView,
+  type RequestResult,
   type RequestView,
   type StudentProfileResult,
 } from "../types/dashboard";
+
+type LoadedRequest = {
+  id: bigint;
+  request: RequestResult;
+};
+
+async function loadRequests(requestIds: bigint[]) {
+  const results = await Promise.allSettled(
+    requestIds.map(async (requestId) => ({
+      id: requestId,
+      request: (await studentClubContract.read.getRequest([requestId])) as RequestResult,
+    })),
+  );
+
+  return results.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
+}
+
+function mapRequestView({ id, request }: LoadedRequest): RequestView {
+  const [
+    clubId,
+    student,
+    amountPaise,
+    purpose,
+    receiptId,
+    receiptHash,
+    status,
+    leadNote,
+    payoutReference,
+  ] = request;
+
+  return {
+    id,
+    clubId,
+    student,
+    amountPaise,
+    purpose,
+    receiptId,
+    receiptHash,
+    status: BigInt(status),
+    leadNote,
+    payoutReference,
+  };
+}
 
 export function useIsAdmin(address?: `0x${string}`) {
   return useQuery({
@@ -120,40 +166,11 @@ export function useRequests(address?: `0x${string}`) {
       "requests",
       requestIds.map((requestId) => requestId.toString()),
     ],
-    queryFn: async () =>
-      Promise.all(
-        requestIds.map((requestId) => studentClubContract.read.getRequest([requestId])),
-      ),
+    queryFn: () => loadRequests([...requestIds]),
     enabled: studentClubAddressConfigured && requestIds.length > 0,
   });
 
-  const requests: RequestView[] =
-    requestsQuery.data?.map((request, index) => {
-      const [
-        clubId,
-        student,
-        amountPaise,
-        purpose,
-        receiptId,
-        receiptHash,
-        status,
-        leadNote,
-        payoutReference,
-      ] = request;
-
-      return {
-        id: requestIds[index],
-        clubId,
-        student,
-        amountPaise,
-        purpose,
-        receiptId,
-        receiptHash,
-        status: BigInt(status),
-        leadNote,
-        payoutReference,
-      };
-    }) ?? [];
+  const requests: RequestView[] = requestsQuery.data?.map(mapRequestView) ?? [];
 
   return {
     requestIds,
@@ -185,40 +202,11 @@ export function useAllRequests() {
       "allRequests",
       requestIds.map((requestId) => requestId.toString()),
     ],
-    queryFn: async () =>
-      Promise.all(
-        requestIds.map((requestId) => studentClubContract.read.getRequest([requestId])),
-      ),
+    queryFn: () => loadRequests(requestIds),
     enabled: studentClubAddressConfigured && requestIds.length > 0,
   });
 
-  const requests: RequestView[] =
-    requestsQuery.data?.map((request, index) => {
-      const [
-        clubId,
-        student,
-        amountPaise,
-        purpose,
-        receiptId,
-        receiptHash,
-        status,
-        leadNote,
-        payoutReference,
-      ] = request;
-
-      return {
-        id: requestIds[index],
-        clubId,
-        student,
-        amountPaise,
-        purpose,
-        receiptId,
-        receiptHash,
-        status: BigInt(status),
-        leadNote,
-        payoutReference,
-      };
-    }) ?? [];
+  const requests: RequestView[] = requestsQuery.data?.map(mapRequestView) ?? [];
 
   return {
     requests,

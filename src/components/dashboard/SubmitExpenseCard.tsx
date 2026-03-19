@@ -3,7 +3,6 @@ import { sepolia } from "viem/chains";
 import {
   useChainId,
   useConnection,
-  useSwitchChain,
   useWaitForTransactionReceipt,
   useWalletClient,
 } from "wagmi";
@@ -20,10 +19,6 @@ export function SubmitExpenseCard() {
   const { address, isConnected } = useConnection();
   const chainId = useChainId();
   const { data: walletClient } = useWalletClient();
-  const {
-    mutateAsync: switchChain,
-    error: switchChainError,
-  } = useSwitchChain();
 
   const [hash, setHash] = useState<`0x${string}` | undefined>();
   const [isPending, setIsPending] = useState(false);
@@ -154,40 +149,13 @@ export function SubmitExpenseCard() {
     }
   }
 
-  async function handleSwitchToSepolia() {
-    setSubmitError(null);
-
-    try {
-      await switchChain({ chainId: sepolia.id });
-    } catch (error) {
-      setSubmitError(
-        errorMessage(error) ??
-          errorMessage(switchChainError) ??
-          "Network switch failed.",
-      );
-    }
-  }
-
   const selectedClub = clubs.find(
     (club) => club.id.toString() === clubIdInput.trim(),
   );
-  const combinedSubmitError =
-    submitError ?? errorMessage(writeError) ?? errorMessage(switchChainError);
+  const combinedSubmitError = submitError ?? errorMessage(writeError);
 
   return (
     <div className="space-y-4">
-      {isConnected && chainId !== sepolia.id ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-800">
-          <div>Wrong network. Switch to Sepolia to submit requests.</div>
-          <button
-            type="button"
-            onClick={() => void handleSwitchToSepolia()}
-            className="mt-3 rounded-lg bg-amber-600 px-3 py-2 text-white"
-          >
-            Switch to Sepolia
-          </button>
-        </div>
-      ) : null}
       <SubmitExpenseSection
         activeClubId={activeClubId}
         amountInput={amountInput}

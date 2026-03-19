@@ -4,7 +4,8 @@ import { useUserRoles } from "../hooks/useStudentClubReads";
 
 export function StudentActionsPage() {
   const { address, isConnected } = useConnection();
-  const { isRegisteredStudent, activeClubId, isLoadingRoles } = useUserRoles(address);
+  const { isRegisteredStudent, activeClubId, isLoadingRoles } =
+    useUserRoles(address);
 
   return (
     <section className="space-y-6">
@@ -12,9 +13,11 @@ export function StudentActionsPage() {
         <div className="text-xs font-semibold uppercase tracking-[0.25em] text-orange-600">
           Student
         </div>
-        <h2 className="mt-3 text-3xl font-bold text-slate-950">Student actions</h2>
+        <h2 className="mt-3 text-3xl font-bold text-slate-950">
+          Student actions
+        </h2>
         <p className="mt-2 text-sm text-slate-500">
-          Submit expense requests for your assigned club. File storage can be added later.
+          Submit expense requests for your assigned club.
         </p>
       </div>
 

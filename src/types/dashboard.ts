@@ -16,7 +16,7 @@ export type RequestResult = readonly [
   string,
   string,
   string,
-  bigint,
+  number,
   string,
   string,
 ];

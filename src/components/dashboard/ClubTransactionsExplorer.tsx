@@ -59,11 +59,9 @@ export function ClubTransactionsExplorer({
               const clubRequests = requests.filter(
                 (request) => request.clubId === club.id,
               );
-              const submittedCount = clubRequests.filter(
-                (request) => request.status === 0n,
-              ).length;
+              const submittedCount = clubRequests.length;
               const approvedCount = clubRequests.filter(
-                (request) => request.status === 1n,
+                (request) => request.status === 1n || request.status === 3n,
               ).length;
 
               return (
