@@ -1,3 +1,4 @@
+**This document is AI generated**
 # Student Club Fund Tracker: Detailed Codebase Walkthrough
 
 This document explains how this project works as a complete system: the React frontend, MetaMask integration, the smart contract, the receipt backend, and the reasoning behind the main implementation decisions.
@@ -48,7 +49,7 @@ The backend is the source of truth only for receipt files and receipt metadata.
 
 ### Backend
 
-- `server/index.mjs`: receipt upload API with SQLite and local disk storage.
+- `server/index.js`: receipt upload API with SQLite and local disk storage.
 
 ## 3. Frontend App Flow
 
@@ -572,7 +573,7 @@ That is far cheaper than storing file content on-chain, while still preserving a
 
 ## 10. Receipt Backend and Why It Exists
 
-The backend in `server/index.mjs` handles receipt storage.
+The backend in `server/index.js` handles receipt storage.
 
 ### What it does
 

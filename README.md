@@ -6,7 +6,7 @@ This frontend connects MetaMask to the deployed `StudentClubFundTracker` contrac
 
 1. Copy `.env.example` to `.env`.
 2. Set `VITE_STUDENT_CLUB_ADDRESS` to the contract address from Remix.
-3. Optionally set `VITE_INFURA_API_KEY` if you want the MetaMask connector to use Infura.
+3. Optionally set `VITE_INFURA_API_KEY` if you want the MetaMask connector to use Infura. (not using currently may be later)
 4. Install dependencies with `pnpm install`.
 5. Start the app with `pnpm dev`.
 

@@ -1,12 +1,10 @@
 import cors from "cors";
+import Database from "better-sqlite3";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import multer from "multer";
 
-const execFileAsync = promisify(execFile);
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
 
@@ -18,28 +16,11 @@ const dbPath = path.join(dataDir, "receipts.sqlite3");
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadsDir, { recursive: true });
 
-function sqlString(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
+const db = new Database(dbPath);
+db.pragma("journal_mode = WAL");
 
-async function runSql(sql, { json = false } = {}) {
-  const args = [];
-  if (json) {
-    args.push("-json");
-  }
-  args.push(dbPath, sql);
-
-  const { stdout, stderr } = await execFileAsync("sqlite3", args);
-
-  if (stderr && stderr.trim()) {
-    throw new Error(stderr.trim());
-  }
-
-  return stdout.trim();
-}
-
-async function initDb() {
-  await runSql(`
+function initDb() {
+  db.exec(`
     CREATE TABLE IF NOT EXISTS receipts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       original_name TEXT NOT NULL,
@@ -51,6 +32,31 @@ async function initDb() {
     );
   `);
 }
+
+initDb();
+
+const insertReceipt = db.prepare(`
+  INSERT INTO receipts (
+    original_name,
+    stored_name,
+    mime_type,
+    size_bytes,
+    sha256
+  ) VALUES (
+    @originalName,
+    @storedName,
+    @mimeType,
+    @sizeBytes,
+    @sha256
+  )
+`);
+
+const findReceiptById = db.prepare(`
+  SELECT *
+  FROM receipts
+  WHERE id = ?
+  LIMIT 1
+`);
 
 const storage = multer.diskStorage({
   destination: (_req, _file, callback) => {
@@ -93,32 +99,19 @@ app.post("/api/receipts", upload.single("receipt"), async (req, res) => {
   }
 
   try {
-    const result = await runSql(
-      `
-        INSERT INTO receipts (
-          original_name,
-          stored_name,
-          mime_type,
-          size_bytes,
-          sha256
-        ) VALUES (
-          ${sqlString(file.originalname)},
-          ${sqlString(file.filename)},
-          ${sqlString(file.mimetype)},
-          ${Number(file.size)},
-          ${sqlString(sha256.toLowerCase())}
-        );
-        SELECT last_insert_rowid() AS id;
-      `,
-      { json: true },
-    );
-
-    const rows = JSON.parse(result);
-    const receiptId = rows[0]?.id;
+    const normalizedSha256 = sha256.toLowerCase();
+    const result = insertReceipt.run({
+      originalName: file.originalname,
+      storedName: file.filename,
+      mimeType: file.mimetype,
+      sizeBytes: file.size,
+      sha256: normalizedSha256,
+    });
+    const receiptId = Number(result.lastInsertRowid);
 
     res.status(201).json({
       id: receiptId,
-      sha256: sha256.toLowerCase(),
+      sha256: normalizedSha256,
       originalName: file.originalname,
       storedName: file.filename,
       mimeType: file.mimetype,
@@ -141,12 +134,7 @@ app.get("/api/receipts/:id", async (req, res) => {
   }
 
   try {
-    const result = await runSql(
-      `SELECT * FROM receipts WHERE id = ${receiptId} LIMIT 1;`,
-      { json: true },
-    );
-    const rows = result ? JSON.parse(result) : [];
-    const receipt = rows[0];
+    const receipt = findReceiptById.get(receiptId);
 
     if (!receipt) {
       res.status(404).json({ error: "Receipt not found." });
@@ -163,8 +151,6 @@ app.get("/api/receipts/:id", async (req, res) => {
     });
   }
 });
-
-await initDb();
 
 app.listen(port, () => {
   console.log(`Receipt API listening on http://localhost:${port}`);
